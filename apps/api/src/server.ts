@@ -1,7 +1,6 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 
 // Import routes
@@ -24,17 +23,12 @@ app.use(helmet())
 app.use(cors())
 app.use(express.json())
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-})
-app.use(limiter)
+// RATE LIMITING REMOVIDO - Sem limitação de requisições
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     version: '1.0.0'
   })
@@ -42,7 +36,7 @@ app.get('/health', (req, res) => {
 
 // API Info
 app.get('/api', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'FinControl API v1.0.0',
     endpoints: [
       '/api/auth',
@@ -71,8 +65,8 @@ app.use('/api/workspaces', workspaceRoutes)
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
-    success: false, 
+  res.status(404).json({
+    success: false,
     error: 'Route not found',
     path: req.path,
     method: req.method
