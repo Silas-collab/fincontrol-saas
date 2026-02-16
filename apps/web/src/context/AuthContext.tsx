@@ -6,7 +6,7 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
-  avatar?: string;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -30,9 +30,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('accessToken');
       if (token) {
         try {
-          const profile = await authService.getProfile();
-          setUser(profile);
-          authService.setUser(profile);
+          const response = await authService.getProfile();
+          setUser(response.data || response);
+          authService.setUser(response.data || response);
         } catch (error) {
           authService.logout();
         }
@@ -45,18 +45,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const response = await authService.login({ email, password });
-    authService.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
-    authService.setWorkspace(response.user.defaultWorkspaceId);
-    setUser(response.user);
-    authService.setUser(response.user);
+    // Backend retorna: { success, message, data: { user, tokens, workspaces } }
+    const { user, tokens, workspaces } = response.data || response;
+    
+    authService.setTokens(tokens.accessToken, tokens.refreshToken);
+    // Usa primeira workspace ou a primeira da lista
+    const defaultWorkspaceId = workspaces?.[0]?.id || user?.defaultWorkspaceId;
+    if (defaultWorkspaceId) {
+      authService.setWorkspace(defaultWorkspaceId);
+    }
+    setUser(user);
+    authService.setUser(user);
   };
 
   const register = async (data: any) => {
     const response = await authService.register(data);
-    authService.setTokens(response.tokens.accessToken, response.tokens.refreshToken);
-    authService.setWorkspace(response.user.defaultWorkspaceId);
-    setUser(response.user);
-    authService.setUser(response.user);
+    // Backend retorna: { success, message, data: { user, tokens, workspace } }
+    const { user, tokens, workspace } = response.data || response;
+    
+    authService.setTokens(tokens.accessToken, tokens.refreshToken);
+    if (workspace?.id) {
+      authService.setWorkspace(workspace.id);
+    }
+    setUser(user);
+    authService.setUser(user);
   };
 
   const logout = () => {
@@ -65,7 +77,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshUser = async () => {
-    const profile = await authService.getProfile();
+    const response = await authService.getProfile();
+    const profile = response.data || response;
     setUser(profile);
   };
 
