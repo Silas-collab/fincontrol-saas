@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1771259395980" clover="3.2.0">
+  <project timestamp="1771259395980" name="All files">
+    <metrics statements="21" coveredstatements="18" conditionals="3" coveredconditionals="0" methods="3" coveredmethods="2" elements="27" coveredelements="20" complexity="0" loc="21" ncloc="21" packages="1" files="1" classes="1"/>
+    <file name="server.ts" path="/a0/usr/workdir/projetos/fincontrol/apps/api/src/server.ts">
+      <metrics statements="21" coveredstatements="18" conditionals="3" coveredconditionals="0" methods="3" coveredmethods="2"/>
+      <line num="1" count="3" type="stmt"/>
+      <line num="2" count="3" type="stmt"/>
+      <line num="3" count="3" type="stmt"/>
+      <line num="4" count="3" type="stmt"/>
+      <line num="5" count="3" type="stmt"/>
+      <line num="7" count="3" type="stmt"/>
+      <line num="9" count="3" type="stmt"/>
+      <line num="11" count="3" type="stmt"/>
+      <line num="12" count="3" type="stmt"/>
+      <line num="13" count="3" type="stmt"/>
+      <line num="15" count="3" type="stmt"/>
+      <line num="19" count="3" type="stmt"/>
+      <line num="21" count="3" type="stmt"/>
+      <line num="22" count="1" type="stmt"/>
+      <line num="25" count="3" type="stmt"/>
+      <line num="26" count="1" type="stmt"/>
+      <line num="30" count="3" type="cond" truecount="0" falsecount="1"/>
+      <line num="31" count="0" type="cond" truecount="0" falsecount="2"/>
+      <line num="32" count="0" type="stmt"/>
+      <line num="33" count="0" type="stmt"/>
+      <line num="37" count="3" type="stmt"/>
+    </file>
+  </project>
+</coverage>
