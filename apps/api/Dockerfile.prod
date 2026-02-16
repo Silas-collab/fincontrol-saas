@@ -1,0 +1,43 @@
+# Build stage
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# Instalar dependências para Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Copiar package files
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Instalar dependências
+RUN npm ci
+
+# Gerar Prisma Client
+RUN npx prisma generate
+
+# Copiar source
+COPY . .
+
+# Build TypeScript
+RUN npm run build
+
+# Production stage
+FROM node:20-slim
+
+WORKDIR /app
+
+# Instalar dependências para Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Copiar arquivos necessários
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma
+
+# Expor porta
+EXPOSE 3001
+
+# Script de entrypoint que executa migrations e inicia servidor
+CMD ["sh", "-c", "echo '⏳ Aguardando PostgreSQL...' && sleep 5 && echo '📦 Executando migrations...' && npx prisma migrate deploy && echo '🚀 Iniciando servidor...' && node dist/server.js"]

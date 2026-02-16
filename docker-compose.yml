@@ -1,41 +1,67 @@
 version: '3.8'
 
 services:
-  db:
+  postgres:
     image: postgres:15-alpine
+    container_name: fincontrol_postgres
     environment:
       POSTGRES_USER: fincontrol
-      POSTGRES_PASSWORD: fincontrol123
+      POSTGRES_PASSWORD: fincontrol_secret
       POSTGRES_DB: fincontrol
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fincontrol -d fincontrol"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    container_name: fincontrol_redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   api:
-    build: ./apps/api
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.prod
+    container_name: fincontrol_api
     environment:
-      DATABASE_URL: postgresql://fincontrol:fincontrol123@db:5432/fincontrol
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-super-secret-key-change-in-production}
-      NODE_ENV: production
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://fincontrol:fincontrol_secret@postgres:5432/fincontrol
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=fincontrol_jwt_secret_key_2024
+      - PORT=3001
     ports:
       - "3001:3001"
     depends_on:
-      - db
-      - redis
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo '⏳ Aguardando PostgreSQL...' &&
+        sleep 3 &&
+        echo '📦 Executando migrations...' &&
+        npx prisma migrate deploy &&
+        echo '🚀 Iniciando servidor...' &&
+        node dist/server.js
+      "
 
   web:
-    build: ./apps/web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.prod
+    container_name: fincontrol_web
     ports:
-      - "3000:80"
+      - "3002:80"
     depends_on:
       - api
 
 volumes:
   postgres_data:
+  redis_data:

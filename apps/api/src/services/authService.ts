@@ -57,7 +57,7 @@ export const authService = {
       data: {
         workspaceId: workspace.id,
         userId: user.id,
-        role: 'owner',
+        role: 'OWNER',
       },
     });
 
