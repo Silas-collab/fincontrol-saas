@@ -46,6 +46,11 @@ CREATE TABLE "users" (
 CREATE TABLE "workspaces" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "description" TEXT,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
     "slug" TEXT NOT NULL,
     "description" TEXT,
     "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
@@ -74,6 +79,11 @@ CREATE TABLE "accounts" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "description" TEXT,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
     "type" "AccountType" NOT NULL,
     "institution" TEXT,
     "agency" TEXT,
@@ -101,6 +111,11 @@ CREATE TABLE "categories" (
     "workspace_id" TEXT NOT NULL,
     "parent_id" TEXT,
     "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "description" TEXT,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
     "type" TEXT NOT NULL,
     "color" TEXT,
     "icon" TEXT,
@@ -169,6 +184,11 @@ CREATE TABLE "credit_cards" (
     "workspace_id" TEXT NOT NULL,
     "account_id" TEXT,
     "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "description" TEXT,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
     "last_four_digits" TEXT,
     "brand" TEXT,
     "limit" DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -188,6 +208,11 @@ CREATE TABLE "goals" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "description" TEXT,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
     "description" TEXT,
     "target_amount" DOUBLE PRECISION NOT NULL,
     "current_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -208,6 +233,11 @@ CREATE TABLE "budgets" (
     "workspace_id" TEXT NOT NULL,
     "category_id" TEXT,
     "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "description" TEXT,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'BRL',
     "period" TEXT NOT NULL DEFAULT 'MONTHLY',
@@ -304,3 +334,30 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_account_id_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- CreateTable Category
+CREATE TABLE "categories" (
+    "id" TEXT NOT NULL,
+    "workspace_id" TEXT NOT NULL,
+    "parent_id" TEXT,
+    "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "description" TEXT,
+    "description" TEXT,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
+    "type" "TransactionType" NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#6B7280',
+    "icon" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "categories_workspace_id_name_key" ON "categories"("workspace_id", "name");
+
+-- AddForeignKey
+ALTER TABLE "categories" ADD CONSTRAINT "categories_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
