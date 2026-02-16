@@ -42,7 +42,7 @@ exports.authService = {
             data: {
                 workspaceId: workspace.id,
                 userId: user.id,
-                role: 'owner',
+                role: 'OWNER',
             },
         });
         const accessToken = (0, token_1.generateAccessToken)(user.id);

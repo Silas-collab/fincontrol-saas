@@ -1,13 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  avatarUrl?: string;
-}
+import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -21,88 +14,69 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        try {
-          const response = await authService.getProfile();
-          setUser(response.data || response);
-          authService.setUser(response.data || response);
-        } catch (error) {
-          authService.logout();
-        }
-      }
+    const token = localStorage.getItem('token');
+    if (token) {
+      refreshUser();
+    } else {
       setIsLoading(false);
-    };
-
-    initAuth();
+    }
   }, []);
+
+  const refreshUser = async () => {
+    try {
+      const response = await authService.getProfile();
+      setUser(response.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      localStorage.removeItem('token');
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = async (email: string, password: string) => {
     const response = await authService.login({ email, password });
-    // Backend retorna: { success, message, data: { user, tokens, workspaces } }
-    const { user, tokens, workspaces } = response.data || response;
-    
-    authService.setTokens(tokens.accessToken, tokens.refreshToken);
-    // Usa primeira workspace ou a primeira da lista
-    const defaultWorkspaceId = workspaces?.[0]?.id || user?.defaultWorkspaceId;
-    if (defaultWorkspaceId) {
-      authService.setWorkspace(defaultWorkspaceId);
-    }
-    setUser(user);
-    authService.setUser(user);
+    localStorage.setItem('token', response.data.accessToken);
+    await refreshUser();
   };
 
   const register = async (data: any) => {
-    const response = await authService.register(data);
-    // Backend retorna: { success, message, data: { user, tokens, workspace } }
-    const { user, tokens, workspace } = response.data || response;
-    
-    authService.setTokens(tokens.accessToken, tokens.refreshToken);
-    if (workspace?.id) {
-      authService.setWorkspace(workspace.id);
-    }
-    setUser(user);
-    authService.setUser(user);
+    await authService.register(data);
   };
 
   const logout = () => {
-    authService.logout();
+    localStorage.removeItem('token');
     setUser(null);
-  };
-
-  const refreshUser = async () => {
-    const response = await authService.getProfile();
-    const profile = response.data || response;
-    setUser(profile);
+    setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        register,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated,
+      isLoading,
+      login,
+      register,
+      logout,
+      refreshUser
+    }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
-};
+}

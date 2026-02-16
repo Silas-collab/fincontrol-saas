@@ -1,66 +1,47 @@
 export interface User {
   id: string;
-  name: string;
   email: string;
-  avatar?: string;
-  createdAt: string;
-}
-
-export interface Workspace {
-  id: string;
-  name: string;
-  description?: string;
-  ownerId: string;
-  members: WorkspaceMember[];
-  createdAt: string;
-}
-
-export interface WorkspaceMember {
-  id: string;
-  userId: string;
-  workspaceId: string;
-  role: 'owner' | 'admin' | 'member';
-  user: User;
+  firstName: string;
+  lastName: string;
+  role: string;
 }
 
 export interface Account {
   id: string;
   name: string;
-  type: 'checking' | 'savings' | 'credit' | 'investment' | 'wallet';
+  type: 'CHECKING' | 'SAVINGS' | 'INVESTMENT' | 'CREDIT' | 'OTHER';
   balance: number;
   currency: string;
-  color: string;
-  workspaceId: string;
+  description?: string;
   isActive: boolean;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  color: string;
+  icon?: string;
+  description?: string;
+  isActive: boolean;
 }
 
 export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  type: 'income' | 'expense' | 'transfer';
+  type: 'income' | 'expense';
   date: string;
-  categoryId: string;
   accountId: string;
-  toAccountId?: string;
-  notes?: string;
-  isRecurring: boolean;
-  tags: string[];
-  createdAt: string;
+  categoryId?: string;
   category?: Category;
   account?: Account;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  type: 'income' | 'expense' | 'both';
-  color: string;
-  icon: string;
-  workspaceId: string;
-  parentId?: string;
-  budget?: number;
+  notes?: string;
+  isRecurring: boolean;
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  createdAt: string;
 }
 
 export interface Budget {
@@ -68,37 +49,33 @@ export interface Budget {
   name: string;
   amount: number;
   spent: number;
-  period: 'monthly' | 'weekly' | 'yearly';
-  categoryId: string;
-  workspaceId: string;
-  startDate: string;
-  endDate?: string;
-  isActive: boolean;
+  period: 'weekly' | 'monthly' | 'yearly';
+  categoryId?: string;
   category?: Category;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
 }
 
 export interface Goal {
   id: string;
   name: string;
+  description?: string;
   targetAmount: number;
   currentAmount: number;
-  type: 'savings' | 'debt' | 'investment' | 'purchase';
   deadline?: string;
-  workspaceId: string;
-  accountId?: string;
+  type: 'SAVINGS' | 'DEBT_PAYMENT' | 'PURCHASE' | 'INVESTMENT' | 'OTHER';
   isActive: boolean;
   createdAt: string;
 }
 
-export interface DashboardStats {
+export interface DashboardSummary {
   totalBalance: number;
+  totalIncome: number;
+  totalExpense: number;
+  netWorth: number;
   monthlyIncome: number;
   monthlyExpense: number;
-  monthlySavings: number;
-  savingsRate: number;
-  transactionsCount: number;
-  accountsCount: number;
+  accounts: Account[];
   recentTransactions: Transaction[];
-  expensesByCategory: { category: Category; amount: number }[];
-  monthlyTrend: { month: string; income: number; expense: number }[];
 }

@@ -1,86 +1,328 @@
-import { motion } from 'framer-motion'
-import { Plus, Target, TrendingUp, Calendar } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Target, TrendingUp, Calendar, X, Wallet } from 'lucide-react';
+import { Layout } from '../components/layout/Layout';
+import { goalService } from '../services/goalService';
+import { Goal } from '../types';
 
-const goals = [
-  { id: 1, name: 'Reserva de Emergência', target: 15000, current: 8000, deadline: '2026-12-31', type: 'savings' },
-  { id: 2, name: 'Viagem Europa', target: 20000, current: 5500, deadline: '2026-07-15', type: 'purchase' },
-  { id: 3, name: 'Quitar Dívida Carro', target: 25000, current: 12000, deadline: '2026-06-30', type: 'debt' },
-  { id: 4, name: 'Investimentos Aposentadoria', target: 100000, current: 15000, deadline: '2046-01-01', type: 'investment' },
-]
+const goalTypes = {
+  SAVINGS: { label: 'Economia', color: 'text-emerald-400' },
+  DEBT_PAYMENT: { label: 'Quitar Dívida', color: 'text-rose-400' },
+  PURCHASE: { label: 'Compra', color: 'text-violet-400' },
+  INVESTMENT: { label: 'Investimento', color: 'text-blue-400' },
+  OTHER: { label: 'Outro', color: 'text-slate-400' }
+};
 
-export default function Goals() {
+export function Goals() {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showContribute, setShowContribute] = useState<string | null>(null);
+  const [contributeAmount, setContributeAmount] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    targetAmount: '',
+    deadline: '',
+    type: 'SAVINGS' as const
+  });
+
+  const fetchGoals = async () => {
+    try {
+      setLoading(true);
+      const response = await goalService.getAll();
+      setGoals(response.data);
+    } catch (error) {
+      console.error('Error fetching goals:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGoals();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await goalService.create({
+        ...formData,
+        targetAmount: parseFloat(formData.targetAmount),
+        deadline: formData.deadline || undefined
+      });
+      setShowModal(false);
+      setFormData({ name: '', description: '', targetAmount: '', deadline: '', type: 'SAVINGS' as const });
+      fetchGoals();
+    } catch (error) {
+      console.error('Error creating goal:', error);
+    }
+  };
+
+  const handleContribute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showContribute) return;
+    try {
+      await goalService.contribute(showContribute, parseFloat(contributeAmount));
+      setShowContribute(null);
+      setContributeAmount('');
+      fetchGoals();
+    } catch (error) {
+      console.error('Error contributing:', error);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta meta?')) return;
+    try {
+      await goalService.delete(id);
+      fetchGoals();
+    } catch (error) {
+      console.error('Error deleting goal:', error);
+    }
+  };
+
+  const totalSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
+  const totalTarget = goals.reduce((sum, g) => sum + g.targetAmount, 0);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="space-y-6"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Metas Financeiras</h1>
-          <p className="text-slate-400 mt-1">Acompanhe seus objetivos</p>
+    <Layout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Metas Financeiras</h1>
+            <p className="text-slate-400 mt-1">Defina e acompanhe suas metas de economia</p>
+          </div>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-violet-500 text-white rounded-lg
+                     hover:bg-violet-600 transition-colors font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Meta
+          </button>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors">
-          <Plus className="w-5 h-5" />
-          Nova Meta
-        </button>
+
+        {/* Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-emerald-500/10 rounded-2xl p-6 border border-emerald-500/30">
+            <p className="text-emerald-400 text-sm">Total Economizado</p>
+            <p className="text-2xl font-bold text-white mt-1">R$ {totalSaved.toFixed(2)}</p>
+          </div>
+          <div className="bg-violet-500/10 rounded-2xl p-6 border border-violet-500/30">
+            <p className="text-violet-400 text-sm">Meta Total</p>
+            <p className="text-2xl font-bold text-white mt-1">R$ {totalTarget.toFixed(2)}</p>
+          </div>
+          <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50">
+            <p className="text-slate-400 text-sm">Progresso</p>
+            <p className="text-2xl font-bold text-white mt-1">
+              {totalTarget > 0 ? ((totalSaved / totalTarget) * 100).toFixed(1) : 0}%
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : goals.length === 0 ? (
+          <div className="text-center py-16 bg-slate-900/30 rounded-2xl border border-slate-700/30">
+            <Target className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-slate-300 mb-2">Nenhuma meta</h3>
+            <p className="text-slate-500 mb-6">Crie metas para economizar com mais foco</p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-4 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600"
+            >
+              Criar Meta
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {goals.map((goal) => {
+              const percentage = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
+              const typeConfig = goalTypes[goal.type] || goalTypes.OTHER;
+              const remaining = goal.targetAmount - goal.currentAmount;
+
+              return (
+                <div key={goal.id} className="bg-slate-900/50 rounded-2xl p-6 border border-slate-700/50">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                        <Target className="w-6 h-6 text-violet-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{goal.name}</h3>
+                        <span className={`text-sm ${typeConfig.color}`}>{typeConfig.label}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setShowContribute(goal.id)}
+                        className="p-2 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+                        title="Adicionar valor"
+                      >
+                        <Wallet className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(goal.id)}
+                        className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {goal.description && (
+                    <p className="text-slate-400 text-sm mb-4">{goal.description}</p>
+                  )}
+
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-2xl font-bold text-white">
+                      R$ {goal.currentAmount.toFixed(2)}
+                    </span>
+                    <span className="text-slate-400">/ R$ {goal.targetAmount.toFixed(2)}</span>
+                  </div>
+
+                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden mb-3">
+                    <div 
+                      className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">{percentage.toFixed(1)}% completo</span>
+                    {remaining > 0 && (
+                      <span className="text-sm text-slate-500">
+                        Faltam R$ {remaining.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+
+                  {goal.deadline && (
+                    <p className="mt-3 text-sm text-slate-500 flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      Prazo: {new Date(goal.deadline).toLocaleDateString('pt-BR')}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Goals Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {goals.map((goal, index) => {
-          const percentage = (goal.current / goal.target) * 100
-          const daysLeft = Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-          
-          return (
-            <motion.div
-              key={goal.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1, duration: 0.4 }}
-              className="glass-card p-6"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                    {goal.type === 'savings' && <Target className="w-6 h-6 text-emerald-400" />}
-                    {goal.type === 'purchase' && <Calendar className="w-6 h-6 text-emerald-400" />}
-                    {goal.type === 'debt' && <TrendingUp className="w-6 h-6 text-emerald-400" />}
-                    {goal.type === 'investment' && <TrendingUp className="w-6 h-6 text-emerald-400" />}
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold">{goal.name}</h3>
-                    <p className="text-slate-400 text-sm">{daysLeft > 0 ? `${daysLeft} dias restantes` : 'Prazo encerrado'}</p>
-                  </div>
-                </div>
+      {/* Create Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="relative w-full max-w-md bg-slate-900 rounded-2xl border border-slate-700/50 shadow-2xl p-6">
+            <h2 className="text-xl font-bold text-white mb-6">Nova Meta</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Nome *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Viagem para Europa"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                />
               </div>
-              
-              <div className="mb-4">
-                <div className="flex items-end justify-between mb-2">
-                  <span className="text-white text-lg font-bold">R$ {goal.current.toLocaleString()}</span>
-                  <span className="text-slate-400 text-sm">de R$ {goal.target.toLocaleString()}</span>
-                </div>
-                
-                {/* Progress Bar */}
-                <div className="h-3 bg-surface-700 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(percentage, 100)}%` }}
-                    transition={{ delay: 0.5 + index * 0.1, duration: 0.8, ease: 'easeOut' }}
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-emerald-400 text-sm font-medium">{percentage.toFixed(1)}% concluído</p>
-                  <p className="text-slate-400 text-sm">Meta: {new Date(goal.deadline).toLocaleDateString('pt-BR')}</p>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Descrição</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Detalhes da meta..."
+                  rows={2}
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white resize-none"
+                />
               </div>
-            </motion.div>
-          )
-        })}
-      </div>
-    </motion.div>
-  )
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Valor Alvo *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={formData.targetAmount}
+                  onChange={(e) => setFormData({ ...formData, targetAmount: e.target.value })}
+                  placeholder="0,00"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Prazo</label>
+                <input
+                  type="date"
+                  value={formData.deadline}
+                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-violet-500 text-white hover:bg-violet-600"
+                >
+                  Criar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Contribute Modal */}
+      {showContribute && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowContribute(null)} />
+          <div className="relative w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-700/50 shadow-2xl p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Adicionar Valor</h2>
+            <form onSubmit={handleContribute} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Valor *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={contributeAmount}
+                  onChange={(e) => setContributeAmount(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowContribute(null)}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
+                >
+                  Adicionar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
 }
+
+
+export default Goals;

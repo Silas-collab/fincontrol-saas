@@ -1,37 +1,42 @@
 import api from './api';
+import { Account } from '../types';
 
-export interface CreateAccountData {
-  name: string;
-  type: string;
-  currency?: string;
-  initialBalance?: number;
-  color?: string;
-  icon?: string;
+interface TransferData {
+  amount: number;
+  date: string;
+  fromAccountId: string;
+  toAccountId: string;
+  description: string;
+  notes?: string;
 }
 
 export const accountService = {
-  async create(data: CreateAccountData) {
-    const response = await api.post('/accounts', data);
-    return response.data.data;
-  },
-
-  async getAll() {
+  getAll: async (): Promise<{ data: Account[] }> => {
     const response = await api.get('/accounts');
-    return response.data.data;
+    return response.data;
   },
 
-  async getById(id: string) {
+  getById: async (id: string): Promise<{ data: Account }> => {
     const response = await api.get(`/accounts/${id}`);
-    return response.data.data;
+    return response.data;
   },
 
-  async update(id: string, data: Partial<CreateAccountData>) {
+  create: async (data: Partial<Account>): Promise<{ data: Account }> => {
+    const response = await api.post('/accounts', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: Partial<Account>): Promise<{ data: Account }> => {
     const response = await api.put(`/accounts/${id}`, data);
-    return response.data.data;
+    return response.data;
   },
 
-  async delete(id: string) {
-    const response = await api.delete(`/accounts/${id}`);
-    return response.data.data;
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/accounts/${id}`);
   },
+
+  transfer: async (data: TransferData): Promise<{ data: { fromAccount: Account; toAccount: Account } }> => {
+    const response = await api.post('/accounts/transfer', data);
+    return response.data;
+  }
 };

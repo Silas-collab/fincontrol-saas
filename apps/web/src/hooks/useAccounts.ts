@@ -1,46 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { accountService } from '../services/accountService';
+import { Account } from '../types';
 
-interface Account {
-  id: string;
-  name: string;
-  type: string;
-  balance: string;
-  currency: string;
-  color: string | null;
-}
-
-export const useAccounts = () => {
+export function useAccounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAccounts = async () => {
-    setIsLoading(true);
+  const fetchAccounts = useCallback(async () => {
     try {
-      const data = await accountService.getAll();
-      setAccounts(data);
+      setIsLoading(true);
       setError(null);
+      const response = await accountService.getAll();
+      setAccounts(response.data || []);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Erro ao carregar contas');
+      setError(err.message || 'Erro ao carregar contas');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const createAccount = async (data: any) => {
-    try {
-      const newAccount = await accountService.create(data);
-      setAccounts((prev: Account[]) => [...prev, newAccount]);
-      return newAccount;
-    } catch (err: any) {
-      throw new Error(err.response?.data?.error || 'Erro ao criar conta');
-    }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAccounts();
-  }, []);
+  }, [fetchAccounts]);
 
-  return { accounts, isLoading, error, fetchAccounts, createAccount };
-};
+  const createAccount = async (data: Partial<Account>) => {
+    const response = await accountService.create(data);
+    await fetchAccounts(); // Refresh list
+    return response;
+  };
+
+  return {
+    accounts,
+    isLoading,
+    error,
+    fetchAccounts,
+    createAccount
+  };
+}
