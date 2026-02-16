@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     try {
       const response = await authService.getProfile();
-      setUser(response.data);
+      setUser(response.user || response.data);
       setIsAuthenticated(true);
     } catch (error) {
       localStorage.removeItem('token');
@@ -44,16 +44,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await authService.login({ email, password });
-    localStorage.setItem('token', response.data.accessToken);
-    await refreshUser();
+    console.log('Login response:', response); // Debug
+    
+    // Extrair token do path correto da resposta da API
+    const accessToken = response.data?.tokens?.accessToken;
+    const refreshToken = response.data?.tokens?.refreshToken;
+    
+    if (accessToken) {
+      localStorage.setItem('token', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.data?.user));
+      if (response.data?.workspaces?.length > 0) {
+        localStorage.setItem('workspaceId', response.data.workspaces[0].id);
+      }
+      await refreshUser();
+    } else {
+      console.error('Token não encontrado na resposta:', response);
+      throw new Error('Token de acesso não recebido');
+    }
   };
 
   const register = async (data: any) => {
-    await authService.register(data);
+    const response = await authService.register(data);
+    console.log('Register response:', response); // Debug
+    
+    const accessToken = response.data?.tokens?.accessToken;
+    const refreshToken = response.data?.tokens?.refreshToken;
+    
+    if (accessToken) {
+      localStorage.setItem('token', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.data?.user));
+      if (response.data?.workspace?.id) {
+        localStorage.setItem('workspaceId', response.data.workspace.id);
+      }
+      await refreshUser();
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('workspaceId');
     setUser(null);
     setIsAuthenticated(false);
   };
