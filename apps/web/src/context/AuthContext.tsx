@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken'); // CORRIGIDO: accessToken
     if (token) {
       refreshUser();
     } else {
@@ -34,7 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(response.user || response.data);
       setIsAuthenticated(true);
     } catch (error) {
-      localStorage.removeItem('token');
+      localStorage.removeItem('accessToken'); // CORRIGIDO
+      localStorage.removeItem('refreshToken');
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -51,13 +52,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshToken = response.data?.tokens?.refreshToken;
     
     if (accessToken) {
-      localStorage.setItem('token', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('accessToken', accessToken); // CORRIGIDO: accessToken
+      localStorage.setItem('refreshToken', refreshToken || '');
       localStorage.setItem('user', JSON.stringify(response.data?.user));
       if (response.data?.workspaces?.length > 0) {
         localStorage.setItem('workspaceId', response.data.workspaces[0].id);
       }
-      await refreshUser();
+      setUser(response.data?.user);
+      setIsAuthenticated(true);
+      setIsLoading(false);
     } else {
       console.error('Token não encontrado na resposta:', response);
       throw new Error('Token de acesso não recebido');
@@ -72,18 +75,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refreshToken = response.data?.tokens?.refreshToken;
     
     if (accessToken) {
-      localStorage.setItem('token', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('accessToken', accessToken); // CORRIGIDO
+      localStorage.setItem('refreshToken', refreshToken || '');
       localStorage.setItem('user', JSON.stringify(response.data?.user));
       if (response.data?.workspace?.id) {
         localStorage.setItem('workspaceId', response.data.workspace.id);
       }
-      await refreshUser();
+      setUser(response.data?.user);
+      setIsAuthenticated(true);
+      setIsLoading(false);
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('accessToken'); // CORRIGIDO
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     localStorage.removeItem('workspaceId');
