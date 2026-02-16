@@ -1,43 +1,46 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'VIEWER');
+CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN', 'SUPPORT');
 
 -- CreateEnum
-CREATE TYPE "WorkspaceType" AS ENUM ('PERSONAL', 'BUSINESS', 'ACCOUNTANT');
+CREATE TYPE "WorkspaceType" AS ENUM ('PERSONAL', 'TEAM', 'ENTERPRISE');
 
 -- CreateEnum
-CREATE TYPE "AccountType" AS ENUM ('CHECKING', 'SAVINGS', 'INVESTMENT', 'CREDIT_CARD', 'LOAN', 'DIGITAL_WALLET', 'CASH');
+CREATE TYPE "WorkspaceRole" AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'VIEWER');
 
 -- CreateEnum
-CREATE TYPE "TransactionType" AS ENUM ('INCOME', 'EXPENSE', 'TRANSFER', 'INVESTMENT', 'REFUND');
+CREATE TYPE "AccountType" AS ENUM ('CHECKING', 'SAVINGS', 'CREDIT', 'INVESTMENT', 'CASH', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "TransactionStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED', 'RECONCILED');
+CREATE TYPE "TransactionType" AS ENUM ('INCOME', 'EXPENSE', 'TRANSFER');
+
+-- CreateEnum
+CREATE TYPE "TransactionStatus" AS ENUM ('PENDING', 'COMPLETED', 'CANCELLED', 'SCHEDULED');
 
 -- CreateEnum
 CREATE TYPE "RecurrenceType" AS ENUM ('NONE', 'DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY');
 
 -- CreateEnum
-CREATE TYPE "GoalStatus" AS ENUM ('ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "BudgetPeriod" AS ENUM ('WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY');
 
 -- CreateEnum
-CREATE TYPE "ImportStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
+CREATE TYPE "GoalType" AS ENUM ('SAVINGS', 'DEBT_PAYOFF', 'PURCHASE', 'EMERGENCY_FUND', 'INVESTMENT', 'OTHER');
 
--- CreateTable Users (CORRIGIDO - first_name/last_name em vez de name)
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('INFO', 'WARNING', 'SUCCESS', 'ERROR');
+
+-- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "password_hash" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
     "first_name" TEXT NOT NULL,
     "last_name" TEXT NOT NULL,
-    "avatar_url" TEXT,
-    "phone" TEXT,
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
+    "avatar" TEXT,
     "email_verified" BOOLEAN NOT NULL DEFAULT false,
-    "two_factor_enabled" BOOLEAN NOT NULL DEFAULT false,
-    "two_factor_secret" TEXT,
     "last_login_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    "deleted_at" TIMESTAMP(3),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -48,12 +51,7 @@ CREATE TABLE "workspaces" (
     "name" TEXT NOT NULL,
     "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
     "description" TEXT,
-    "description" TEXT,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3) NOT NULL,
     "slug" TEXT NOT NULL,
-    "description" TEXT,
-    "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
     "currency" TEXT NOT NULL DEFAULT 'BRL',
     "settings" JSONB NOT NULL DEFAULT '{}',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -67,7 +65,7 @@ CREATE TABLE "workspace_members" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
-    "role" "UserRole" NOT NULL DEFAULT 'MEMBER',
+    "role" "WorkspaceRole" NOT NULL DEFAULT 'MEMBER',
     "invited_by" TEXT,
     "joined_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -79,26 +77,12 @@ CREATE TABLE "accounts" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
-    "description" TEXT,
-    "description" TEXT,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3) NOT NULL,
     "type" "AccountType" NOT NULL,
-    "institution" TEXT,
-    "agency" TEXT,
-    "account_number" TEXT,
-    "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "balance" DECIMAL(65,30) NOT NULL DEFAULT 0,
     "currency" TEXT NOT NULL DEFAULT 'BRL',
-    "credit_limit" DOUBLE PRECISION,
-    "billing_day" INTEGER,
-    "interest_rate" DOUBLE PRECISION,
     "color" TEXT,
     "icon" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "sync_enabled" BOOLEAN NOT NULL DEFAULT false,
-    "sync_provider" TEXT,
-    "last_sync_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -109,50 +93,33 @@ CREATE TABLE "accounts" (
 CREATE TABLE "categories" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
-    "parent_id" TEXT,
     "name" TEXT NOT NULL,
-    "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
-    "description" TEXT,
-    "description" TEXT,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3) NOT NULL,
-    "type" TEXT NOT NULL,
+    "type" "TransactionType" NOT NULL,
     "color" TEXT,
     "icon" TEXT,
-    "keywords" TEXT,
-    "is_system" BOOLEAN NOT NULL DEFAULT false,
-    "budget_limit" DOUBLE PRECISION,
+    "parent_id" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable Transactions (CORRIGIDO)
+-- CreateTable
 CREATE TABLE "transactions" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
     "account_id" TEXT NOT NULL,
     "category_id" TEXT,
-    "credit_card_id" TEXT,
     "type" "TransactionType" NOT NULL,
-    "description" TEXT NOT NULL,
-    "amount" DOUBLE PRECISION NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'BRL',
-    "status" "TransactionStatus" NOT NULL DEFAULT 'PENDING',
+    "amount" DECIMAL(65,30) NOT NULL,
+    "description" TEXT,
     "transaction_date" TIMESTAMP(3) NOT NULL,
-    "confirmed_at" TIMESTAMP(3),
-    "recurrence_id" TEXT,
-    "notes" TEXT,
-    "tags" TEXT NOT NULL DEFAULT '',
-    "attachment_url" TEXT,
-    "location" TEXT,
-    "import_id" TEXT,
-    "raw_data" TEXT,
-    "ai_confidence" DOUBLE PRECISION,
-    "ai_category" TEXT,
-    "ai_categorized_at" TIMESTAMP(3),
-    "ai_model_version" TEXT,
+    "status" "TransactionStatus" NOT NULL DEFAULT 'COMPLETED',
+    "is_recurring" BOOLEAN NOT NULL DEFAULT false,
+    "recurrence_type" "RecurrenceType" DEFAULT 'NONE',
+    "recurrence_end_date" TIMESTAMP(3),
+    "parent_transaction_id" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -160,90 +127,15 @@ CREATE TABLE "transactions" (
 );
 
 -- CreateTable
-CREATE TABLE "recurrences" (
-    "id" TEXT NOT NULL,
-    "workspace_id" TEXT NOT NULL,
-    "account_id" TEXT NOT NULL,
-    "category_id" TEXT,
-    "type" "RecurrenceType" NOT NULL,
-    "description" TEXT NOT NULL,
-    "amount" DOUBLE PRECISION NOT NULL,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3),
-    "next_due_date" TIMESTAMP(3) NOT NULL,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "recurrences_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "credit_cards" (
-    "id" TEXT NOT NULL,
-    "workspace_id" TEXT NOT NULL,
-    "account_id" TEXT,
-    "name" TEXT NOT NULL,
-    "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
-    "description" TEXT,
-    "description" TEXT,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3) NOT NULL,
-    "last_four_digits" TEXT,
-    "brand" TEXT,
-    "limit" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "available_limit" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "billing_day" INTEGER NOT NULL,
-    "due_day" INTEGER NOT NULL,
-    "interest_rate" DOUBLE PRECISION,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "credit_cards_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "goals" (
-    "id" TEXT NOT NULL,
-    "workspace_id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
-    "description" TEXT,
-    "description" TEXT,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3) NOT NULL,
-    "description" TEXT,
-    "target_amount" DOUBLE PRECISION NOT NULL,
-    "current_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "currency" TEXT NOT NULL DEFAULT 'BRL',
-    "deadline" TIMESTAMP(3),
-    "status" "GoalStatus" NOT NULL DEFAULT 'ACTIVE',
-    "color" TEXT,
-    "icon" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "goals_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "budgets" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
-    "category_id" TEXT,
     "name" TEXT NOT NULL,
-    "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
-    "description" TEXT,
-    "description" TEXT,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3) NOT NULL,
-    "amount" DOUBLE PRECISION NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'BRL',
-    "period" TEXT NOT NULL DEFAULT 'MONTHLY',
+    "amount" DECIMAL(65,30) NOT NULL,
+    "period" "BudgetPeriod" NOT NULL DEFAULT 'MONTHLY',
     "start_date" TIMESTAMP(3) NOT NULL,
     "end_date" TIMESTAMP(3),
-    "alert_threshold" DOUBLE PRECISION NOT NULL DEFAULT 80,
+    "color" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -252,36 +144,41 @@ CREATE TABLE "budgets" (
 );
 
 -- CreateTable
-CREATE TABLE "imports" (
+CREATE TABLE "budget_categories" (
+    "id" TEXT NOT NULL,
+    "budget_id" TEXT NOT NULL,
+    "category_id" TEXT NOT NULL,
+    "amount" DECIMAL(65,30) NOT NULL,
+
+    CONSTRAINT "budget_categories_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "goals" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
-    "account_id" TEXT NOT NULL,
-    "file_name" TEXT NOT NULL,
-    "file_size" INTEGER NOT NULL,
-    "mime_type" TEXT NOT NULL,
-    "status" "ImportStatus" NOT NULL DEFAULT 'PENDING',
-    "mapping_config" JSONB,
-    "processed_count" INTEGER NOT NULL DEFAULT 0,
-    "error_count" INTEGER NOT NULL DEFAULT 0,
-    "error_log" TEXT,
-    "started_at" TIMESTAMP(3),
-    "completed_at" TIMESTAMP(3),
+    "name" TEXT NOT NULL,
+    "type" "GoalType" NOT NULL DEFAULT 'SAVINGS',
+    "target_amount" DECIMAL(65,30) NOT NULL,
+    "current_amount" DECIMAL(65,30) NOT NULL DEFAULT 0,
+    "deadline" TIMESTAMP(3),
+    "color" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "imports_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "goals_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "notifications" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
-    "workspace_id" TEXT,
-    "type" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL DEFAULT 'INFO',
     "title" TEXT NOT NULL,
     "message" TEXT NOT NULL,
-    "data" JSONB,
     "is_read" BOOLEAN NOT NULL DEFAULT false,
-    "read_at" TIMESTAMP(3),
+    "data" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
@@ -308,9 +205,6 @@ CREATE INDEX "transactions_category_id_idx" ON "transactions"("category_id");
 -- CreateIndex
 CREATE INDEX "transactions_transaction_date_idx" ON "transactions"("transaction_date");
 
--- CreateIndex
-CREATE INDEX "transactions_type_idx" ON "transactions"("type");
-
 -- AddForeignKey
 ALTER TABLE "workspace_members" ADD CONSTRAINT "workspace_members_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -335,29 +229,17 @@ ALTER TABLE "transactions" ADD CONSTRAINT "transactions_account_id_fkey" FOREIGN
 -- AddForeignKey
 ALTER TABLE "transactions" ADD CONSTRAINT "transactions_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- CreateTable Category
-CREATE TABLE "categories" (
-    "id" TEXT NOT NULL,
-    "workspace_id" TEXT NOT NULL,
-    "parent_id" TEXT,
-    "name" TEXT NOT NULL,
-    "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
-    "description" TEXT,
-    "description" TEXT,
-    "start_date" TIMESTAMP(3) NOT NULL,
-    "end_date" TIMESTAMP(3) NOT NULL,
-    "type" "TransactionType" NOT NULL,
-    "color" TEXT NOT NULL DEFAULT '#6B7280',
-    "icon" TEXT,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "categories_workspace_id_name_key" ON "categories"("workspace_id", "name");
+-- AddForeignKey
+ALTER TABLE "budgets" ADD CONSTRAINT "budgets_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "categories" ADD CONSTRAINT "categories_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "budget_categories" ADD CONSTRAINT "budget_categories_budget_id_fkey" FOREIGN KEY ("budget_id") REFERENCES "budgets"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "budget_categories" ADD CONSTRAINT "budget_categories_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "goals" ADD CONSTRAINT "goals_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
