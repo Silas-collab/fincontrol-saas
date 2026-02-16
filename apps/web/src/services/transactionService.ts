@@ -8,6 +8,8 @@ export interface CreateTransactionData {
   description?: string;
   date?: string;
   tags?: string[];
+  isRecurring?: boolean;
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 
 export const transactionService = {
