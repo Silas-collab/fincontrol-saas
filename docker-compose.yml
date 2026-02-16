@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: fincontrol
+      POSTGRES_PASSWORD: fincontrol123
+      POSTGRES_DB: fincontrol
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./apps/api
+    environment:
+      DATABASE_URL: postgresql://fincontrol:fincontrol123@db:5432/fincontrol
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-super-secret-key-change-in-production}
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+      - redis
+
+  web:
+    build: ./apps/web
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

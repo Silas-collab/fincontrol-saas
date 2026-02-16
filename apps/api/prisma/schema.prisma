@@ -1,162 +1,710 @@
 generator client {
-  provider = "prisma-client-js"
+ provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+ provider = "sqlite"
+ url = env("DATABASE_URL")
 }
 
+// ==================== ENUMS ====================
+
+// ==================== ENTIDADES PRINCIPAIS ====================
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  avatar    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  workspaces WorkspaceMember[]
-  accounts   Account[]
-  categories Category[]
-  transactions Transaction[]
-  budgets    Budget[]
-  goals      Goal[]
-  
-  @@map("users")
+ id String @id @default(uuid())
+ email String @unique
+ passwordHash String @map("password_hash")
+ firstName String @map("first_name")
+ lastName String @map("last_name")
+ avatarUrl String? @map("avatar_url")
+ phone String?
+ emailVerified Boolean @default(false) @map("email_verified")
+ twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+ twoFactorSecret String? @map("two_factor_secret")
+ lastLoginAt DateTime? @map("last_login_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ deletedAt DateTime? @map("deleted_at")
+
+ workspaces WorkspaceMember[]
+ sessions Session[]
+ notifications Notification[]
+ auditLogs AuditLog[]
+ passwordResets PasswordReset[]
+ refreshTokens RefreshToken[]
+
+ gamification UserGamification?
+ aiInsights AIInsight[]
+ scenarios Scenario[]
+ autoRules AutoRule[]
+
+ @@index([email])
+ @@map("users")
+}
+
+model Session {
+ id String @id @default(uuid())
+ userId String @map("user_id")
+ token String @unique
+ ipAddress String? @map("ip_address")
+ userAgent String? @map("user_agent")
+ expiresAt DateTime @map("expires_at")
+ createdAt DateTime @default(now()) @map("created_at")
+
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+ @@index([userId])
+ @@map("sessions")
+}
+
+model RefreshToken {
+ id String @id @default(uuid())
+ userId String @map("user_id")
+ token String @unique
+ expiresAt DateTime @map("expires_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ revokedAt DateTime? @map("revoked_at")
+
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+ @@index([userId])
+ @@map("refresh_tokens")
+}
+
+model PasswordReset {
+ id String @id @default(uuid())
+ userId String @map("user_id")
+ token String @unique
+ expiresAt DateTime @map("expires_at")
+ usedAt DateTime? @map("used_at")
+ createdAt DateTime @default(now()) @map("created_at")
+
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+ @@index([token])
+ @@map("password_resets")
 }
 
 model Workspace {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  members    WorkspaceMember[]
-  accounts   Account[]
-  categories Category[]
-  transactions Transaction[]
-  budgets    Budget[]
-  goals      Goal[]
-  
-  @@map("workspaces")
+ id String @id @default(uuid())
+ name String
+ slug String @unique
+ description String?
+ type String
+ currency String @default("BRL")
+ timezone String @default("America/Sao_Paulo")
+ isActive Boolean @default(true) @map("is_active")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ members WorkspaceMember[]
+ accounts Account[]
+ categories Category[]
+ goals Goal[]
+ budgets Budget[]
+ imports ImportJob[]
+ auditLogs AuditLog[]
+
+ envelopes Envelope[]
+ assets Asset[]
+ liabilities Liability[]
+ aiInsights AIInsight[]
+ scenarios Scenario[]
+ bankConnections BankConnection[]
+ autoRules AutoRule[]
+ cashFlowProjections CashFlowProjection[]
+ Transaction Transaction[]
+
+ @@index([slug])
+ @@map("workspaces")
 }
 
 model WorkspaceMember {
-  id          String   @id @default(uuid())
-  role        String   // owner, admin, member
-  userId      String
-  workspaceId String
-  createdAt   DateTime @default(now())
-  
-  user      User      @relation(fields: [userId], references: [id])
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
-  
-  @@unique([userId, workspaceId])
-  @@map("workspace_members")
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ userId String @map("user_id")
+ role String
+ joinedAt DateTime @default(now()) @map("joined_at")
+ invitedBy String? @map("invited_by")
+
+ workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+ @@unique([workspaceId, userId])
+ @@index([userId])
+ @@map("workspace_members")
 }
 
 model Account {
-  id          String   @id @default(uuid())
-  name        String
-  type        String   // checking, savings, credit, investment, wallet
-  balance     Decimal  @default(0)
-  currency    String   @default("BRL")
-  color       String   @default("#10b981")
-  isActive    Boolean  @default(true)
-  userId      String
-  workspaceId String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  user         User          @relation(fields: [userId], references: [id])
-  workspace    Workspace     @relation(fields: [workspaceId], references: [id])
-  transactions Transaction[]
-  
-  @@map("accounts")
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ name String
+ type String
+ description String?
+ bankName String? @map("bank_name")
+ bankCode String? @map("bank_code")
+ agency String?
+ accountNumber String? @map("account_number")
+ initialBalance Float @default(0) @map("initial_balance")
+ currentBalance Float @default(0) @map("current_balance")
+ creditLimit Float? @map("credit_limit")
+ closingDay Int? @map("closing_day")
+ dueDay Int? @map("due_day")
+ color String @default("#3B82F6")
+ icon String @default("Wallet")
+ isActive Boolean @default(true) @map("is_active")
+ archivedAt DateTime? @map("archived_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+ transactions Transaction[]
+ fromTransfers Transfer[] @relation("FromAccount")
+ toTransfers Transfer[] @relation("ToAccount")
+ bankConnections BankConnection[]
+
+ @@index([workspaceId])
+ @@map("accounts")
 }
 
 model Category {
-  id          String   @id @default(uuid())
-  name        String
-  type        String   // income, expense, both
-  color       String   @default("#10b981")
-  icon        String   @default("CircleDollarSign")
-  userId      String
-  workspaceId String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  user         User          @relation(fields: [userId], references: [id])
-  workspace    Workspace     @relation(fields: [workspaceId], references: [id])
-  transactions Transaction[]
-  budgets      Budget[]
-  
-  @@map("categories")
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ parentId String? @map("parent_id")
+ name String
+ type String
+ color String @default("#6B7280")
+ icon String @default("Tag")
+ description String?
+ keywords String
+ isSystem Boolean @default(false) @map("is_system")
+ isActive Boolean @default(true) @map("is_active")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+ parent Category? @relation("CategoryParent", fields: [parentId], references: [id])
+ children Category[] @relation("CategoryParent")
+ transactions Transaction[]
+ budgets BudgetCategory[]
+ envelopes Envelope[]
+
+ @@index([workspaceId])
+ @@map("categories")
 }
 
 model Transaction {
-  id           String   @id @default(uuid())
-  description  String
-  amount       Decimal
-  type         String   // income, expense, transfer
-  date         DateTime
-  notes        String?
-  isRecurring  Boolean  @default(false)
-  tags         String[]
-  userId       String
-  accountId    String
-  toAccountId  String?
-  categoryId   String?
-  workspaceId  String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  user        User       @relation(fields: [userId], references: [id])
-  account     Account    @relation(fields: [accountId], references: [id])
-  category    Category?  @relation(fields: [categoryId], references: [id])
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
-  
-  @@map("transactions")
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ accountId String @map("account_id")
+ categoryId String? @map("category_id")
+ creditCardId String? @map("credit_card_id")
+
+ type String
+ description String
+ amount Float
+ currency String @default("BRL")
+ status String
+
+ transactionDate DateTime @map("transaction_date")
+ confirmedAt DateTime? @map("confirmed_at")
+
+ recurrenceId String? @map("recurrence_id")
+
+ notes String?
+ tags String
+ attachmentUrl String? @map("attachment_url")
+ location String?
+
+ importId String? @map("import_id")
+ rawData String? @map("raw_data")
+
+ aiConfidence Float? @map("ai_confidence")
+ aiCategory String? @map("ai_category")
+ aiCategorizedAt DateTime? @map("ai_categorized_at")
+ aiModelVersion String? @map("ai_model_version")
+
+ autoRuleId String? @map("auto_rule_id")
+
+ bankConnectionId String? @map("bank_connection_id")
+ externalId String? @map("external_id")
+
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+ account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+ category Category? @relation(fields: [categoryId], references: [id])
+
+ @@index([workspaceId, transactionDate])
+ @@index([accountId, transactionDate])
+ @@index([categoryId])
+ @@map("transactions")
+}
+
+model Recurrence {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ accountId String @map("account_id")
+ categoryId String? @map("category_id")
+
+ type String
+ description String
+ amount Float
+ frequency String
+
+ startDate DateTime @map("start_date")
+ endDate DateTime? @map("end_date")
+ nextOccurrence DateTime @map("next_occurrence")
+
+ isActive Boolean @default(true) @map("is_active")
+ autoConfirm Boolean @default(false) @map("auto_confirm")
+ notifyBefore Int @default(3) @map("notify_before")
+
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ @@index([workspaceId, nextOccurrence])
+ @@index([isActive, nextOccurrence])
+ @@map("recurrences")
+}
+
+model Transfer {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ fromAccountId String @map("from_account_id")
+ toAccountId String @map("to_account_id")
+
+ description String
+ amount Float
+ fee Float?
+
+ transferDate DateTime @map("transfer_date")
+
+ createdAt DateTime @default(now()) @map("created_at")
+
+ fromAccount Account @relation("FromAccount", fields: [fromAccountId], references: [id], onDelete: Cascade)
+ toAccount Account @relation("ToAccount", fields: [toAccountId], references: [id], onDelete: Cascade)
+
+ @@index([workspaceId, transferDate])
+ @@map("transfers")
 }
 
 model Budget {
-  id          String   @id @default(uuid())
-  name        String
-  amount      Decimal
-  period      String   // monthly, weekly, yearly
-  startDate   DateTime
-  endDate     DateTime?
-  isActive    Boolean  @default(true)
-  userId      String
-  workspaceId String
-  categoryId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  user        User       @relation(fields: [userId], references: [id])
-  workspace   Workspace  @relation(fields: [workspaceId], references: [id])
-  category    Category?  @relation(fields: [categoryId], references: [id])
-  
-  @@map("budgets")
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+
+ name String
+ description String?
+
+ startDate DateTime @map("start_date")
+ endDate DateTime @map("end_date")
+
+ totalBudgeted Float @map("total_budgeted")
+ totalSpent Float @default(0) @map("total_spent")
+
+ isActive Boolean @default(true) @map("is_active")
+ alertThreshold Int @default(80) @map("alert_threshold")
+ alertSent Boolean @default(false) @map("alert_sent")
+
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ categories BudgetCategory[]
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, startDate, endDate])
+ @@map("budgets")
+}
+
+model BudgetCategory {
+ id String @id @default(uuid())
+ budgetId String @map("budget_id")
+ categoryId String @map("category_id")
+
+ budgeted Float
+ spent Float @default(0)
+
+ budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+ category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+ @@unique([budgetId, categoryId])
+ @@map("budget_categories")
 }
 
 model Goal {
-  id             String   @id @default(uuid())
-  name           String
-  targetAmount   Decimal
-  currentAmount  Decimal  @default(0)
-  type           String   // savings, debt, investment, purchase
-  deadline       DateTime?
-  isActive       Boolean  @default(true)
-  userId         String
-  workspaceId    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
-  user      User      @relation(fields: [userId], references: [id])
-  workspace Workspace @relation(fields: [workspaceId], references: [id])
-  
-  @@map("goals")
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+
+ name String
+ description String?
+ type String
+
+ targetAmount Float @map("target_amount")
+ currentAmount Float @default(0) @map("current_amount")
+
+ startDate DateTime @map("start_date")
+ targetDate DateTime? @map("target_date")
+ completedAt DateTime? @map("completed_at")
+
+ status String
+
+ icon String @default("Target")
+ color String @default("#10B981")
+
+ autoAllocate Boolean @default(false) @map("auto_allocate")
+ allocationPercentage Float? @map("allocation_percentage")
+
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ contributions GoalContribution[]
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, status])
+ @@map("goals")
+}
+
+model GoalContribution {
+ id String @id @default(uuid())
+ goalId String @map("goal_id")
+
+ amount Float
+ description String?
+ contributedAt DateTime @default(now()) @map("contributed_at")
+
+ goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+ @@index([goalId, contributedAt])
+ @@map("goal_contributions")
+}
+
+model ImportJob {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ accountId String @map("account_id")
+
+ format String
+ fileName String @map("file_name")
+ fileSize Int @map("file_size")
+ fileUrl String? @map("file_url")
+
+ status String
+ progress Int @default(0)
+
+ totalRows Int @default(0) @map("total_rows")
+ processedRows Int @default(0) @map("processed_rows")
+ importedRows Int @default(0) @map("imported_rows")
+
+ errorLog String? @map("error_log")
+ mappingConfig String? @map("mapping_config")
+
+ startedAt DateTime? @map("started_at")
+ completedAt DateTime? @map("completed_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, status])
+ @@map("import_jobs")
+}
+
+model Notification {
+ id String @id @default(uuid())
+ userId String @map("user_id")
+ workspaceId String? @map("workspace_id")
+
+ type String
+ title String
+ message String
+ data String?
+
+ readAt DateTime? @map("read_at")
+
+ createdAt DateTime @default(now()) @map("created_at")
+
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+ @@index([userId, readAt])
+ @@map("notifications")
+}
+
+model AuditLog {
+ id String @id @default(uuid())
+ userId String? @map("user_id")
+ workspaceId String? @map("workspace_id")
+
+ action String
+ entityType String @map("entity_type")
+ entityId String? @map("entity_id")
+
+ oldData String? @map("old_data")
+ newData String? @map("new_data")
+
+ ipAddress String? @map("ip_address")
+ userAgent String? @map("user_agent")
+
+ createdAt DateTime @default(now()) @map("created_at")
+
+ user User? @relation(fields: [userId], references: [id])
+ Workspace Workspace? @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, createdAt])
+ @@map("audit_logs")
+}
+
+// ==================== GAMIFICATION ====================
+
+model UserGamification {
+ id String @id @default(uuid())
+ userId String @unique @map("user_id")
+
+ tier String
+ totalXP Int @default(0) @map("total_xp")
+ currentLevel Int @default(1) @map("current_level")
+ xpToNextLevel Int @default(100) @map("xp_to_next_level")
+
+ loginStreak Int @default(0) @map("login_streak")
+ longestLoginStreak Int @default(0) @map("longest_login_streak")
+ transactionStreak Int @default(0) @map("transaction_streak")
+
+ transactionsLogged Int @default(0) @map("transactions_logged")
+ budgetsMet Int @default(0) @map("budgets_met")
+ goalsAchieved Int @default(0) @map("goals_achieved")
+
+ lastLoginDate DateTime? @map("last_login_date")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ achievements UserAchievement[]
+
+ @@map("user_gamification")
+}
+
+model Achievement {
+ id String @id @default(uuid())
+ type String @unique
+ name String
+ description String
+ icon String
+ color String
+ xpReward Int @map("xp_reward")
+ requirementType String @map("requirement_type")
+ requirementValue Int @map("requirement_value")
+ createdAt DateTime @default(now()) @map("created_at")
+
+ @@map("achievements")
+}
+
+model UserAchievement {
+ id String @id @default(uuid())
+ userGamificationId String @map("user_gamification_id")
+ achievementId String @map("achievement_id")
+ unlockedAt DateTime @default(now()) @map("unlocked_at")
+ UserGamification UserGamification @relation(fields: [userGamificationId], references: [id])
+
+ @@unique([userGamificationId, achievementId])
+ @@map("user_achievements")
+}
+
+// ==================== ENVELOPES ====================
+
+model Envelope {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ categoryId String? @map("category_id")
+
+ name String
+ description String?
+ color String @default("#3B82F6")
+
+ budgetedAmount Float @map("budgeted_amount")
+ availableAmount Float @default(0) @map("available_amount")
+ spentAmount Float @default(0) @map("spent_amount")
+
+ month Int
+ year Int
+
+ isActive Boolean @default(true) @map("is_active")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+ Category Category? @relation(fields: [categoryId], references: [id])
+
+ @@unique([workspaceId, categoryId, month, year])
+ @@index([workspaceId, month, year])
+ @@map("envelopes")
+}
+
+// ==================== ASSETS & LIABILITIES ====================
+
+model Asset {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+
+ name String
+ type String
+ description String?
+
+ currentValue Float @map("current_value")
+ purchaseValue Float? @map("purchase_value")
+ purchaseDate DateTime? @map("purchase_date")
+
+ isActive Boolean @default(true) @map("is_active")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, type])
+ @@map("assets")
+}
+
+model Liability {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+
+ name String
+ type String
+ description String?
+
+ currentBalance Float @map("current_balance")
+ originalAmount Float @map("original_amount")
+
+ interestRate Float? @map("interest_rate")
+
+ startDate DateTime @map("start_date")
+ endDate DateTime? @map("end_date")
+
+ isActive Boolean @default(true) @map("is_active")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, type])
+ @@map("liabilities")
+}
+
+// ==================== AI INSIGHTS ====================
+
+model AIInsight {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ userId String @map("user_id")
+
+ type String
+ title String
+ description String
+ severity String
+
+ suggestedAction String? @map("suggested_action")
+ actionTaken Boolean @default(false) @map("action_taken")
+
+ confidenceScore Float? @map("confidence_score")
+
+ dismissedAt DateTime? @map("dismissed_at")
+ createdAt DateTime @default(now()) @map("created_at")
+ User User @relation(fields: [userId], references: [id])
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, userId, createdAt])
+ @@map("ai_insights")
+}
+
+// ==================== SCENARIOS ====================
+
+model Scenario {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ userId String @map("user_id")
+
+ name String
+ description String?
+ type String
+
+ parameters String
+
+ isFavorite Boolean @default(false) @map("is_favorite")
+ isActive Boolean @default(true) @map("is_active")
+
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ User User @relation(fields: [userId], references: [id])
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, userId])
+ @@map("scenarios")
+}
+
+// ==================== OPEN FINANCE ====================
+
+model BankConnection {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ accountId String @map("account_id")
+
+ bankName String @map("bank_name")
+ bankCode String @map("bank_code")
+
+ accessToken String @map("access_token")
+
+ status String
+ lastSyncAt DateTime? @map("last_sync_at")
+ lastSyncError String? @map("last_sync_error")
+
+ isActive Boolean @default(true) @map("is_active")
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+ Account Account @relation(fields: [accountId], references: [id])
+
+ @@index([workspaceId, status])
+ @@map("bank_connections")
+}
+
+// ==================== AUTO RULES ====================
+
+model AutoRule {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+ userId String @map("user_id")
+
+ name String
+ description String?
+ isActive Boolean @default(true) @map("is_active")
+ priority Int @default(0)
+
+ conditions String
+ actions String
+
+ timesApplied Int @default(0) @map("times_applied")
+
+ createdAt DateTime @default(now()) @map("created_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ User User @relation(fields: [userId], references: [id])
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@index([workspaceId, isActive])
+ @@map("auto_rules")
+}
+
+// ==================== CASH FLOW PROJECTIONS ====================
+
+model CashFlowProjection {
+ id String @id @default(uuid())
+ workspaceId String @map("workspace_id")
+
+ month Int
+ year Int
+
+ projectedIncome Float @map("projected_income")
+ projectedExpense Float @map("projected_expense")
+ projectedBalance Float @map("projected_balance")
+
+ generatedAt DateTime @default(now()) @map("generated_at")
+ updatedAt DateTime @updatedAt @map("updated_at")
+ Workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+ @@unique([workspaceId, month, year])
+ @@map("cash_flow_projections")
 }
