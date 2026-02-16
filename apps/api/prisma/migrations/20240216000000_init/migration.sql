@@ -22,22 +22,22 @@ CREATE TYPE "GoalStatus" AS ENUM ('ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED');
 -- CreateEnum
 CREATE TYPE "ImportStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED');
 
--- CreateTable
+-- CreateTable Users (CORRIGIDO - first_name/last_name em vez de name)
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "password_hash" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "phone" TEXT,
+    "first_name" TEXT NOT NULL,
+    "last_name" TEXT NOT NULL,
     "avatar_url" TEXT,
-    "timezone" TEXT NOT NULL DEFAULT 'America/Sao_Paulo',
-    "currency" TEXT NOT NULL DEFAULT 'BRL',
-    "language" TEXT NOT NULL DEFAULT 'pt-BR',
+    "phone" TEXT,
     "email_verified" BOOLEAN NOT NULL DEFAULT false,
+    "two_factor_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "two_factor_secret" TEXT,
     "last_login_at" TIMESTAMP(3),
-    "preferences" JSONB NOT NULL DEFAULT '{}',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "deleted_at" TIMESTAMP(3),
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -48,6 +48,7 @@ CREATE TABLE "workspaces" (
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
+    "currency" TEXT NOT NULL DEFAULT 'BRL',
     "settings" JSONB NOT NULL DEFAULT '{}',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -111,7 +112,7 @@ CREATE TABLE "categories" (
     CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+-- CreateTable Transactions (CORRIGIDO)
 CREATE TABLE "transactions" (
     "id" TEXT NOT NULL,
     "workspace_id" TEXT NOT NULL,
