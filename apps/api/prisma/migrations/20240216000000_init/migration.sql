@@ -47,6 +47,7 @@ CREATE TABLE "workspaces" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
+    "description" TEXT,
     "type" "WorkspaceType" NOT NULL DEFAULT 'PERSONAL',
     "currency" TEXT NOT NULL DEFAULT 'BRL',
     "settings" JSONB NOT NULL DEFAULT '{}',
